@@ -1,44 +1,93 @@
-name: Terraform Pipeline
+name: terraform-ci
 
 on:
   push:
-    branches:
-      - main
+    branches: [ "**" ]
+  pull_request:
+  workflow_dispatch: # permite rodar manualmente o apply
+
+permissions:
+  contents: read
 
 env:
-  TERRAFORM_VERSION: 1.13.1
+  AWS_REGION: ${{ vars.AWS_REGION }}
 
 jobs:
-
-  tf-aws:
-    name: AWS provider
+  tests:
+    name: Terraform Tests
     runs-on: ubuntu-latest
-    
     steps:
-    - name: Step 01 - Terraform Setup
-      uses: hashicorp/setup-terraform@v3
-      with:
-        terraform_version: ${{ env.TERRAFORM_VERSION }}
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-    - name: Step 02 - CheckOut GitHub Repo
-      uses: actions/checkout@v4
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
 
-    - name: Step 03 - Authenticate with AWS
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id    : ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-session-token    : ${{ secrets.AWS_SESSION_TOKEN }}
-        aws-region           : ${{ vars.AWS_REGION }}
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
 
-    - name: Step 04 - Terraform Init
-      run: terraform -chdir=./terraform init
+      # --- TESTES ---
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
 
-    - name: Step 05 - Terraform Plan
-      run: terraform -chdir=./terraform plan -out=tfplan
+      - name: Checkov Scan
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: .
+          quiet: true
 
-    - name: Step 06 - Terraform Apply
-      run: terraform -chdir=./terraform apply tfplan
+      - name: Terraform Init (root)
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="key=aws-virtual-machine/terraform.tfstate" \
+            -backend-config="region=${{ vars.AWS_REGION }}" \
+            -input=false
 
-    - name: Step 07 - Terraform Show
-      run: terraform -chdir=./terraform show
+      - name: Terraform Validate (root)
+        run: terraform validate -no-color
+
+      - name: Validate module network
+        run: terraform -chdir=modules/network validate -no-color
+
+      - name: Validate module vm
+        run: terraform -chdir=modules/vm validate -no-color
+
+      - name: Terraform Plan
+        run: terraform plan -no-color -var-file=env/dev.tfvars
+
+  apply:
+    name: Terraform Apply
+    if: github.event_name == 'workflow_dispatch'
+    needs: tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="key=aws-virtual-machine/terraform.tfstate" \
+            -backend-config="region=${{ vars.AWS_REGION }}" \
+            -input=false
+
+      - name: Terraform Apply (manual)
+        run: terraform apply -auto-approve -var-file=env/dev.tfvars
