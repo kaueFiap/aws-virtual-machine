@@ -1,0 +1,93 @@
+name: terraform-ci
+
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+  workflow_dispatch: # permite rodar manualmente o apply
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+
+jobs:
+  tests:
+    name: Terraform Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # --- TESTES ---
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+
+      - name: Checkov Scan
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: .
+          quiet: true
+
+      - name: Terraform Init (root)
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="key=aws-virtual-machine/terraform.tfstate" \
+            -backend-config="region=${{ vars.AWS_REGION }}" \
+            -input=false
+
+      - name: Terraform Validate (root)
+        run: terraform validate -no-color
+
+      - name: Validate module network
+        run: terraform -chdir=modules/network validate -no-color
+
+      - name: Validate module vm
+        run: terraform -chdir=modules/vm validate -no-color
+
+      - name: Terraform Plan
+        run: terraform plan -no-color -var-file=env/dev.tfvars
+
+  apply:
+    name: Terraform Apply
+    if: github.event_name == 'workflow_dispatch'
+    needs: tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="key=aws-virtual-machine/terraform.tfstate" \
+            -backend-config="region=${{ vars.AWS_REGION }}" \
+            -input=false
+
+      - name: Terraform Apply (manual)
+        run: terraform apply -auto-approve -var-file=env/dev.tfvars

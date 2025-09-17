@@ -1,7 +1,5 @@
-# PROVIDER
 terraform {
-
-  required_version = "1.13.1"
+  required_version = ">= 1.3.0"
 
   required_providers {
     aws = {
@@ -11,10 +9,9 @@ terraform {
   }
 
   backend "s3" {
-    bucket       = "aws-vm-tfstate-kledsonbasso"
-    key          = "tfstate"
-    region       = "us-east-1"
-    use_lockfile = true
+    bucket = "aws-bucket-17-9-2025"
+    key    = "aws-virtual-machine/terraform.tfstate"
+    region = "us-east-1"
+    encrypt = true
   }
-
 }
