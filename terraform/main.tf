@@ -7,12 +7,12 @@ module "network" {
 }
 
 module "vm" {
-  source              = "./modules/vm"
-  name                = "fiap-web"
-  ami                 = var.ami
-  instance_type       = var.instance_type
-  subnet_id           = module.network.public_subnet_id
-  security_group_ids  = [module.network.sg_public_id]
-  user_data_path      = var.user_data_path
-  tags                = { project = "fiap-aws-vm" }
+  source             = "./modules/vm"
+  name               = "fiap-web"
+  ami                = var.ami
+  instance_type      = var.instance_type
+  subnet_id          = module.network.public_subnet_id
+  security_group_ids = [module.network.sg_public_id]
+  user_data_path     = var.user_data_path
+  tags               = { project = "fiap-aws-vm" }
 }

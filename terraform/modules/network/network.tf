@@ -2,7 +2,7 @@
 resource "aws_vpc" "this" {
   cidr_block           = var.vpc_cidr
   enable_dns_hostnames = true
-  tags = merge(var.tags, { Name = "vm-vpc" })
+  tags                 = merge(var.tags, { Name = "vm-vpc" })
 }
 
 # IGW
@@ -17,7 +17,7 @@ resource "aws_subnet" "public" {
   cidr_block              = var.public_subnet_cidr
   availability_zone       = var.az
   map_public_ip_on_launch = true
-  tags = merge(var.tags, { Name = "vm-public" })
+  tags                    = merge(var.tags, { Name = "vm-public" })
 }
 
 # Rota pública
