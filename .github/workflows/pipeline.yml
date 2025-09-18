@@ -47,8 +47,9 @@ jobs:
       - name: Step 06 - Terraform Format Check
         run: terraform -chdir=terraform fmt -check -diff -recursive
 
-      - name: Step 07 - Terraform Plan
-        run: terraform -chdir=terraform plan -out=tfplan
+      - name: Terraform Plan
+        run: terraform -chdir=terraform plan -out=tfplan -var="region=${{ env.AWS_REGION }}"
+
 
       - name: Step 08 - Checkov Scan
         uses: bridgecrewio/checkov-action@master
