@@ -1,8 +1,3 @@
-variable "create_iam_role" {
-  type    = bool
-  default = false
-}
-
 resource "aws_iam_role" "ec2_role" {
   count = var.create_iam_role ? 1 : 0
 

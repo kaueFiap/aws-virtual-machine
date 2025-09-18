@@ -1,3 +1,8 @@
+variable "create_iam_role" {
+  type    = bool
+  default = false
+}
+
 variable "ami" {}
 variable "instance_type" {}
 variable "subnet_id" {}
@@ -12,4 +17,3 @@ variable "tags" {
   type = map(string)
 }
 variable "name" {}
-
