@@ -1,15 +1,16 @@
-name: terraform-ci
+name: Terraform CI/CD
 
 on:
   push:
-    branches: [ "**" ]
+    branches: [ "main" ]
   pull_request:
-  workflow_dispatch: # permite rodar manualmente o apply
+  workflow_dispatch: # Permite executar manualmente
 
 permissions:
   contents: read
 
 env:
+  TERRAFORM_VERSION: 1.12.2
   AWS_REGION: ${{ vars.AWS_REGION }}
 
 jobs:
@@ -17,11 +18,13 @@ jobs:
     name: Terraform Tests
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -35,11 +38,12 @@ jobs:
       - name: Terraform Format Check
         run: terraform fmt -check -recursive
 
-      - name: Checkov Scan
+      - name: Checkov Security Scan
         uses: bridgecrewio/checkov-action@v12
         with:
           directory: .
           quiet: true
+          output_format: sarif
 
       - name: Terraform Init (root)
         run: |
@@ -67,11 +71,13 @@ jobs:
     needs: tests
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
