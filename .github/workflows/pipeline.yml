@@ -48,7 +48,7 @@ jobs:
         run: terraform -chdir=terraform fmt -check -diff -recursive
 
       - name: Step 07 - Terraform Plan
-        run: terraform -chdir=terraform plan -out=tfplan -var-file=env/dev.tfvars
+        run: terraform -chdir=terraform plan -out=tfplan
 
       - name: Step 08 - Checkov Scan
         uses: bridgecrewio/checkov-action@master
