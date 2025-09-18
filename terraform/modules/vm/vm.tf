@@ -43,3 +43,7 @@ resource "aws_instance" "this" {
 
   tags = merge(var.tags, { Name = var.name })
 }
+
+output "ec2_public_dns" {
+  value = aws_instance.this.public_dns
+}
