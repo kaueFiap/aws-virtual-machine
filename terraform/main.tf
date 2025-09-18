@@ -16,3 +16,8 @@ module "vm" {
   user_data_path     = var.user_data_path
   tags               = { project = "fiap-aws-vm" }
 }
+
+provider "aws" {
+  region = var.region
+}
+
