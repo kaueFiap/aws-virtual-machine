@@ -3,8 +3,10 @@ module "network" {
   vpc_cidr           = var.vpc_cidr
   public_subnet_cidr = var.public_subnet_cidr
   az                 = var.az
+  region             = var.region
   tags               = { project = "fiap-aws-vm" }
 }
+
 
 module "vm" {
   source             = "./modules/vm"
