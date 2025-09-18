@@ -59,10 +59,10 @@ jobs:
         run: terraform validate -no-color
 
       - name: Validate module network
-        run: terraform -chdir=modules/network validate -no-color
+        run: terraform -chdir=terraform/modules/network validate -no-color
 
       - name: Validate module vm
-        run: terraform -chdir=modules/vm validate -no-color
+        run: terraform -chdir=terraform/modules/vm validate -no-color
 
       - name: Terraform Plan
         run: terraform plan -no-color -var-file=env/dev.tfvars
