@@ -2,31 +2,30 @@ name: Terraform CI/CD
 
 on:
   push:
-    branches: [ "main" ]
+    branches:
+      - main
   pull_request:
-  workflow_dispatch: # Permite executar manualmente
-
-permissions:
-  contents: read
+  workflow_dispatch: # Permite rodar manualmente o apply
 
 env:
   TERRAFORM_VERSION: 1.12.2
   AWS_REGION: ${{ vars.AWS_REGION }}
 
 jobs:
-  tests:
+  test:
     name: Terraform Tests
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
 
-      - name: Setup Terraform
+    steps:
+      - name: Step 01 - Terraform Setup
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
 
-      - name: Configure AWS credentials
+      - name: Step 02 - Checkout GitHub Repo
+        uses: actions/checkout@v4
+
+      - name: Step 03 - Authenticate with AWS
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -34,11 +33,23 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # --- TESTES ---
-      - name: Terraform Format Check
-        run: terraform fmt -check -recursive
+      - name: Step 04 - Terraform Init
+        run: terraform -chdir=terraform init \
+              -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+              -backend-config="key=aws-virtual-machine/terraform.tfstate" \
+              -backend-config="region=${{ vars.AWS_REGION }}" \
+              -input=false
 
-      - name: Checkov Security Scan
+      - name: Step 05 - Terraform Validate
+        run: terraform -chdir=terraform validate -no-color
+
+      - name: Step 06 - Terraform Format Check
+        run: terraform -chdir=terraform fmt -check -diff -recursive
+
+      - name: Step 07 - Terraform Plan
+        run: terraform -chdir=terraform plan -out=tfplan -var-file=env/dev.tfvars
+
+      - name: Step 08 - Checkov Scan
         uses: bridgecrewio/checkov-action@master
         with:
           framework: terraform
@@ -46,37 +57,22 @@ jobs:
           output_file_path: console
           soft_fail: true
 
-
-      - name: Terraform Init (root)
-        run: |
-          terraform init \
-            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
-            -backend-config="key=aws-virtual-machine/terraform.tfstate" \
-            -backend-config="region=${{ vars.AWS_REGION }}" \
-            -input=false
-
-      - name: Terraform Validate
-        run: terraform -chdir=terraform validate -no-color
-
-
-      - name: Terraform Plan
-        run: terraform -chdir=terraform plan -no-color -var-file=env/dev.tfvars
-
-  apply:
-    name: Terraform Apply
-    if: github.event_name == 'workflow_dispatch'
-    needs: tests
+  deploy:
+    name: Terraform Deploy
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    needs: test
+    if: github.event_name == 'workflow_dispatch'
 
-      - name: Setup Terraform
+    steps:
+      - name: Step 01 - Terraform Setup
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
 
-      - name: Configure AWS credentials
+      - name: Step 02 - Checkout GitHub Repo
+        uses: actions/checkout@v4
+
+      - name: Step 03 - Authenticate with AWS
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -84,13 +80,15 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Terraform Init
+      - name: Step 04 - Terraform Init
         run: terraform -chdir=terraform init \
               -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
               -backend-config="key=aws-virtual-machine/terraform.tfstate" \
               -backend-config="region=${{ vars.AWS_REGION }}" \
               -input=false
 
+      - name: Step 05 - Terraform Apply
+        run: terraform -chdir=terraform apply -auto-approve tfplan
 
-      - name: Terraform Apply (manual)
-        run: terraform apply -auto-approve -var-file=env/dev.tfvars
+      - name: Step 06 - Terraform Show
+        run: terraform -chdir=terraform show
