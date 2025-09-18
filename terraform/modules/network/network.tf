@@ -5,11 +5,18 @@ resource "aws_vpc" "this" {
   tags                 = merge(var.tags, { Name = "vm-vpc" })
 }
 
-# Flow Logs para a VPC
+resource "aws_kms_key" "cloudwatch_logs" {
+  description             = "KMS key for CloudWatch logs"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+}
+
 resource "aws_cloudwatch_log_group" "vpc_flow_logs" {
   name              = "/aws/vpc/flow-logs"
-  retention_in_days = 7
+  retention_in_days = 365 # > 1 ano para corrigir CKV_AWS_338 também
+  kms_key_id        = aws_kms_key.cloudwatch_logs.arn
 }
+
 
 resource "aws_flow_log" "vpc" {
   log_destination      = aws_cloudwatch_log_group.vpc_flow_logs.arn
