@@ -48,9 +48,11 @@ jobs:
         run: terraform -chdir=terraform fmt -check -diff -recursive
 
       - name: Terraform Plan
-        run: terraform -chdir=terraform plan -out=tfplan \
-          -var="region=${{ env.AWS_REGION }}" \
-          -var="tf_state_bucket=${{ vars.TF_STATE_BUCKET }}"
+        run: |
+          terraform -chdir=terraform plan -out=tfplan \
+            -var="region=${{ env.AWS_REGION }}" \
+            -var="tf_state_bucket=${{ vars.TF_STATE_BUCKET }}"
+
 
 
       - name: Step 08 - Checkov Scan
