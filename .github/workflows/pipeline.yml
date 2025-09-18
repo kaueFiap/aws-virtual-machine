@@ -55,11 +55,12 @@ jobs:
             -backend-config="region=${{ vars.AWS_REGION }}" \
             -input=false
 
-      - name: Terraform Validate (root)
-        run: terraform validate -no-color
+      - name: Terraform Validate
+        run: terraform -chdir=terraform validate -no-color
+
 
       - name: Terraform Plan
-        run: terraform plan -no-color
+        run: terraform -chdir=terraform plan -no-color -var-file=env/dev.tfvars
 
   apply:
     name: Terraform Apply
@@ -84,12 +85,12 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Terraform Init
-        run: |
-          terraform init \
-            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
-            -backend-config="key=aws-virtual-machine/terraform.tfstate" \
-            -backend-config="region=${{ vars.AWS_REGION }}" \
-            -input=false
+        run: terraform -chdir=terraform init \
+              -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+              -backend-config="key=aws-virtual-machine/terraform.tfstate" \
+              -backend-config="region=${{ vars.AWS_REGION }}" \
+              -input=false
+
 
       - name: Terraform Apply (manual)
         run: terraform apply -auto-approve -var-file=env/dev.tfvars
