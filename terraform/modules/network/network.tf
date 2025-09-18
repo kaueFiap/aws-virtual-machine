@@ -5,19 +5,21 @@ resource "aws_vpc" "this" {
   tags                 = merge(var.tags, { Name = "vm-vpc" })
 }
 
+# KMS para logs
 resource "aws_kms_key" "cloudwatch_logs" {
   description             = "KMS key for CloudWatch logs"
   deletion_window_in_days = 7
   enable_key_rotation     = true
 }
 
+# CloudWatch Log Group
 resource "aws_cloudwatch_log_group" "vpc_flow_logs" {
   name              = "/aws/vpc/flow-logs"
-  retention_in_days = 365 # > 1 ano para corrigir CKV_AWS_338 também
+  retention_in_days = 365
   kms_key_id        = aws_kms_key.cloudwatch_logs.arn
 }
 
-
+# VPC Flow Logs
 resource "aws_flow_log" "vpc" {
   log_destination      = aws_cloudwatch_log_group.vpc_flow_logs.arn
   traffic_type         = "ALL"
@@ -25,25 +27,18 @@ resource "aws_flow_log" "vpc" {
   log_destination_type = "cloud-watch-logs"
 }
 
-# Restringe o SG default da VPC
-resource "aws_default_security_group" "default" {
-  vpc_id  = aws_vpc.this.id
-  ingress = []
-  egress  = []
-}
-
-# IGW
+# Internet Gateway
 resource "aws_internet_gateway" "this" {
   vpc_id = aws_vpc.this.id
   tags   = merge(var.tags, { Name = "vm-igw" })
 }
 
-# Subnet pública (sem IP público automático)
+# Subnet pública
 resource "aws_subnet" "public" {
   vpc_id                  = aws_vpc.this.id
   cidr_block              = var.public_subnet_cidr
   availability_zone       = var.az
-  map_public_ip_on_launch = false
+  map_public_ip_on_launch = true
   tags                    = merge(var.tags, { Name = "vm-public" })
 }
 
@@ -62,61 +57,36 @@ resource "aws_route_table_association" "public_assoc" {
   route_table_id = aws_route_table.public.id
 }
 
-# Security Group
+# Security Group público
 resource "aws_security_group" "public" {
   name        = "sg_public"
-  description = "Security group para tráfego público"
+  description = "Permite tráfego SSH e HTTP"
   vpc_id      = aws_vpc.this.id
 
-  # Egress seguro apenas para portas necessárias (ex.: HTTP e HTTPS)
-  egress {
-    description = "Saída HTTPS"
-    from_port   = 443
-    to_port     = 443
+  ingress {
+    description = "Acesso SSH"
+    from_port   = 22
+    to_port     = 22
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  egress {
-    description = "Saída HTTP"
+  ingress {
+    description = "Acesso HTTP"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # Tráfego interno
-  ingress {
-    description = "Tráfego interno permitido"
+  egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = [var.allow_intra_cidr]
-  }
-
-  # SSH
-  dynamic "ingress" {
-    for_each = var.allow_ssh_cidr
-    content {
-      description = "Acesso SSH"
-      from_port   = 22
-      to_port     = 22
-      protocol    = "tcp"
-      cidr_blocks = [ingress.value]
-    }
-  }
-
-  # HTTP
-  dynamic "ingress" {
-    for_each = var.allow_http_cidr
-    content {
-      description = "Acesso HTTP"
-      from_port   = 80
-      to_port     = 80
-      protocol    = "tcp"
-      cidr_blocks = [ingress.value]
-    }
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   tags = merge(var.tags, { Name = "sg_public" })
 }
+
+
