@@ -1,7 +1,12 @@
-# IAM Role mínima para EC2 (Checkov exige isso)
-resource "aws_iam_role" "ec2_role" {
-  name = "ec2_instance_role"
+variable "create_iam_role" {
+  type    = bool
+  default = false
+}
 
+resource "aws_iam_role" "ec2_role" {
+  count = var.create_iam_role ? 1 : 0
+
+  name = "ec2_instance_role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
@@ -17,11 +22,11 @@ resource "aws_iam_role" "ec2_role" {
 }
 
 resource "aws_iam_instance_profile" "ec2_profile" {
-  name = "ec2_instance_profile"
-  role = aws_iam_role.ec2_role.name
+  count = var.create_iam_role ? 1 : 0
+  name  = "ec2_instance_profile"
+  role  = var.create_iam_role ? aws_iam_role.ec2_role[0].name : null
 }
 
-# Instância EC2
 resource "aws_instance" "this" {
   ami                    = var.ami
   instance_type          = var.instance_type
@@ -31,7 +36,7 @@ resource "aws_instance" "this" {
   user_data_base64       = base64encode(templatefile(var.user_data_path, {}))
   monitoring             = true
   ebs_optimized          = true
-  iam_instance_profile   = aws_iam_instance_profile.ec2_profile.name
+  iam_instance_profile   = var.create_iam_role ? aws_iam_instance_profile.ec2_profile[0].name : null
 
   metadata_options {
     http_tokens = "required"
@@ -42,8 +47,4 @@ resource "aws_instance" "this" {
   }
 
   tags = merge(var.tags, { Name = var.name })
-}
-
-output "ec2_public_dns" {
-  value = aws_instance.this.public_dns
 }

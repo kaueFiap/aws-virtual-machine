@@ -12,11 +12,11 @@ resource "aws_kms_key" "cloudwatch_logs" {
   enable_key_rotation      = true
 }
 
-# Política para permitir uso do KMS pelo CloudWatch Logs
+# Política KMS
 resource "aws_kms_key_policy" "cloudwatch_logs_policy" {
   key_id = aws_kms_key.cloudwatch_logs.id
   policy = jsonencode({
-    Version = "2012-10-17"
+    Version = "2012-10-17",
     Statement = [
       {
         Sid       = "AllowCloudWatchLogs",
@@ -111,13 +111,4 @@ resource "aws_security_group" "public" {
   }
 
   tags = merge(var.tags, { Name = "sg_public" })
-}
-
-# Outputs
-output "public_subnet_id" {
-  value = aws_subnet.public.id
-}
-
-output "sg_public_id" {
-  value = aws_security_group.public.id
 }
