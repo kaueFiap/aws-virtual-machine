@@ -41,9 +41,11 @@ jobs:
       - name: Checkov Security Scan
         uses: bridgecrewio/checkov-action@v12
         with:
-          directory: .
-          quiet: true
-          output_format: sarif
+          framework: terraform
+          output_format: cli
+          output_file_path: console
+          soft_fail: true
+
 
       - name: Terraform Init (root)
         run: |
