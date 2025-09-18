@@ -12,7 +12,4 @@ variable "tags" {
   type = map(string)
 }
 variable "name" {}
-variable "create_iam_role" {
-  type    = bool
-  default = false
-}
+
