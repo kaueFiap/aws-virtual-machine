@@ -39,7 +39,7 @@ jobs:
         run: terraform fmt -check -recursive
 
       - name: Checkov Security Scan
-        uses: bridgecrewio/checkov-action@v12
+        uses: bridgecrewio/checkov-action@master
         with:
           framework: terraform
           output_format: cli
